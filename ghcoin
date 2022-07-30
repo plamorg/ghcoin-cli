@@ -16,6 +16,8 @@ def print_help():
         ("send <recipient> <amount>", "Send the specified recipient the given amount"),
         ("balance [user ...]", "Retrieve the balance of self or the specified user(s)"),
         ("list", "List valid recipients"),
+        ("register <user>", "Register a user onto the ledger"),
+        ("login <user>", "Login as a user on the ledger"),
         ("help, -h, --help", "List this help message")
     ]
     core_commands: str = format_commands_list(core_commands_list)

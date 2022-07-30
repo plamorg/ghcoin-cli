@@ -10,6 +10,18 @@ def main():
         print_help()
         sys.exit(0)
 
+    execute_command(args)
+
+def execute_command(args: List[str]):
+    command = args[0]
+    match command:
+        case 'help' | '-h' | '--help':
+            print_help()
+            sys.exit(0)
+        case _:
+            print(f"ERROR: Unknown command")
+            sys.exit(1)
+
 # Print the help message
 def print_help():
     core_commands_list: List = [

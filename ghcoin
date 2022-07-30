@@ -24,6 +24,11 @@ def execute_command(args: List[str]):
                 print_balance(name)
             else:
                 print_balances(users)
+        case ['list']:
+            gh_force_pull()
+            print_registered()
+        case ['list', *_]:
+            error_and_exit("Expected no arguments to list registered accounts")
         case ['register']:
             name: str = get_gh_username()
             register(name)
@@ -77,6 +82,14 @@ def print_balances(names: List[str]):
     formatted_users: str = format_list(found_users)
     print("BALANCES")
     print(formatted_users)
+
+def print_registered():
+    ledger_name: str = "ledger.csv"
+    reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
+    names_list: List[str] = [line[0] for line in reader]
+    names: str = ", ".join(names_list)
+    print("REGISTERED ACCOUNTS")
+    print(names)
 
 # Register the given name onto the ledger
 def register(name: str):

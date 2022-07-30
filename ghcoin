@@ -2,6 +2,7 @@
 
 import csv
 import sys
+import secrets
 import subprocess
 
 from subprocess import CompletedProcess
@@ -17,15 +18,21 @@ def main():
 
 def execute_command(args: List[str]):
     match args:
+        case ['send', recipient, amount_str]:
+            amount: int = int(amount_str)
+            sender: str = get_gh_username()
+            create_transaction(sender, recipient, amount)
+        case ['send', *_]:
+            error_and_exit("Expected <recipient> and <amount> to create transaction")
         case ['balance']:
-            gh_force_pull()
+            # gh_force_pull()
             name: str = get_gh_username()
             print_balance(name)
         case ['balance', *users]:
-            gh_force_pull()
+            # gh_force_pull()
             print_balances(users)
         case ['list']:
-            gh_force_pull()
+            # gh_force_pull()
             print_registered()
         case ['list', *_]:
             error_and_exit("Expected no arguments to list registered accounts")
@@ -56,12 +63,45 @@ def get_gh_username() -> str:
 
     return name
 
-def get_ledger_reader(ledger_name: str) -> Iterable[List[str]]:
+def get_ledger_reader(ledger_name: str) -> List[List[str]]:
     with open (ledger_name, newline='') as ledgerfile:
         reader = csv.reader(ledgerfile, delimiter=",")
         reader.__next__()
         
         return list(reader)
+
+def create_transaction(sender: str, recipient: str, amount: int):
+    ledger_name: str = "ledger.csv"
+    accounts: List[List[str]] = get_ledger_reader(ledger_name)
+
+    sender_found: bool = False
+    recipient_found: bool = False
+
+    for i in range(len(accounts)):
+        line = accounts[i]
+        name = line[0]
+        if name == sender:
+            balance: int = int(line[1])
+            if amount > balance:
+                error_and_exit(f"Insufficient funds in account {sender}")
+            balance -= amount
+            accounts[i][1] = str(balance)
+            sender_found = True
+        if name == recipient:
+            balance = int(line[1]) + amount
+            accounts[i][1] = str(balance)
+            recipient_found = True
+    
+    if not sender_found:
+        error_and_exit(f"Account {sender} not found")
+    if not recipient_found:
+        error_and_exit(f"Account {recipient} not found")
+
+    file = open(ledger_name, 'w', newline='')
+    file.write("name,balance\n")
+    for account in accounts:
+        file.write(f"{account[0]},{account[1]}\n")
+    success_and_exit("Created local transaction")
 
 def print_balance(name: str):
     ledger_name: str = "ledger.csv"
@@ -104,7 +144,7 @@ def is_user_in_ledger(ledger_name: str, name: str) -> bool:
 
 def register_user_into_ledger(ledger_name: str, name: str):
     with open(ledger_name, 'a', newline='') as ledgerfile:
-        writer = csv.writer(ledgerfile, delimiter=',', lineterminator='\n')
+        writer = csv.writer(ledgerfile, lineterminator='\n')
         contents: List[str] = f"{name},0".split(",")
         writer.writerow(contents)
         success_and_exit(f"Registered user \"{name}\" into ledger")

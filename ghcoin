@@ -18,6 +18,7 @@ def main():
 def execute_command(args: List[str]):
     match args:
         case ['balance', *users]:
+            gh_force_pull()
             if len(users) == 0:
                 name: str = get_gh_username()
                 print_balance(name)
@@ -127,6 +128,19 @@ def format_list(strs: List) -> str:
         lines.append(line)
     formatted: str = "\n".join(lines)
     return formatted
+
+def gh_force_pull():
+    remote_url: str = "https://raw.githubusercontent.com/plamorg/ghcoin/master/ledger.csv"
+    command: str = f"curl {remote_url}"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to force sync local ledger")
+
+    ledger_name: str = "ledger.csv"
+    with open(ledger_name, "w") as file:
+        file.write(result.stdout)
 
 def error_and_exit(msg: str):
     formatted_msg: str = "\x1b[31mERROR\x1b[39m: " + msg

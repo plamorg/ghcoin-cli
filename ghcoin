@@ -17,13 +17,13 @@ def main():
 
 def execute_command(args: List[str]):
     match args:
+        case ['balance']:
+            gh_force_pull()
+            name: str = get_gh_username()
+            print_balance(name)
         case ['balance', *users]:
             gh_force_pull()
-            if len(users) == 0:
-                name: str = get_gh_username()
-                print_balance(name)
-            else:
-                print_balances(users)
+            print_balances(users)
         case ['list']:
             gh_force_pull()
             print_registered()

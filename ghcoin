@@ -5,7 +5,7 @@ import sys
 import subprocess
 
 from subprocess import CompletedProcess
-from typing import List
+from typing import List, Iterable
 
 def main():
     args: List[str] = sys.argv[1:]
@@ -17,6 +17,12 @@ def main():
 
 def execute_command(args: List[str]):
     match args:
+        case ['balance', *users]:
+            if len(users) == 0:
+                name: str = get_gh_username()
+                print_balance(name)
+            else:
+                print_balances(users)
         case ['register']:
             name: str = get_gh_username()
             register(name)
@@ -44,6 +50,33 @@ def get_gh_username() -> str:
 
     return name
 
+def get_ledger_reader(ledger_name: str) -> Iterable[List[str]]:
+    with open (ledger_name, newline='') as ledgerfile:
+        reader = csv.reader(ledgerfile, delimiter=",")
+        reader.__next__()
+        
+        return list(reader)
+
+def print_balance(name: str):
+    ledger_name: str = "ledger.csv"
+    reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
+
+    for user, amount in reader:
+        if name == user:
+            success_and_exit(f"{name} has {amount}")
+    else:
+        error_and_exit(f"Could not find {name} in ledger")
+
+def print_balances(names: List[str]):
+    users = set(names)
+    ledger_name: str = "ledger.csv"
+    reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
+    found_users: List = [line for line in reader if line[0] in users]
+
+    formatted_users: str = format_list(found_users)
+    print("BALANCES")
+    print(formatted_users)
+
 # Register the given name onto the ledger
 def register(name: str):
     ledger_name: str = "ledger.csv"
@@ -52,11 +85,8 @@ def register(name: str):
     register_user_into_ledger(ledger_name, name)
 
 def is_user_in_ledger(ledger_name: str, name: str) -> bool:
-    with open(ledger_name, newline='') as ledgerfile:
-        reader = csv.reader(ledgerfile, delimiter=",")
-        reader.__next__() # Skip the column descriptors
-        
-        return any(name == line[0] for line in reader)
+    reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
+    return any(name == line[0] for line in reader)
 
 def register_user_into_ledger(ledger_name: str, name: str):
     with open(ledger_name, 'a', newline='') as ledgerfile:
@@ -74,7 +104,7 @@ def print_help():
         ("register <user>", "Register a user onto the ledger"),
         ("help, -h, --help", "List this help message")
     ]
-    core_commands: str = format_commands_list(core_commands_list)
+    core_commands: str = format_list(core_commands_list)
     help_message: str = \
 f"""Control your transactions from the command line.
 
@@ -87,13 +117,13 @@ CORE COMMANDS:
     print(help_message)
 
 # Format a list of commands for printing in the help message
-def format_commands_list(commands: List) -> str:
+def format_list(strs: List) -> str:
     lines: List[str] = list()
-    command_column_len: int = max(len(c[0]) for c in commands) + 2
-    for command in commands:
-        padding_len: int = command_column_len - len(command[0])
+    column_len: int = max(len(s[0]) for s in strs) + 2
+    for s in strs:
+        padding_len: int = column_len - len(s[0])
         padding: str = " " * padding_len
-        line: str = "    " + command[0] + padding + command[1]
+        line: str = "    " + s[0] + padding + s[1]
         lines.append(line)
     formatted: str = "\n".join(lines)
     return formatted

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+import csv
 import sys
+import subprocess
 
+from subprocess import CompletedProcess
 from typing import List
 
 def main():
@@ -13,14 +16,54 @@ def main():
     execute_command(args)
 
 def execute_command(args: List[str]):
-    command = args[0]
-    match command:
+    match args:
+        case ['register']:
+            name: str = get_gh_username()
+            register(name)
+        case ['register', *_]:
+            error_and_exit("Expected no arguments for user to register")
         case 'help' | '-h' | '--help':
             print_help()
             sys.exit(0)
         case _:
-            print(f"ERROR: Unknown command")
-            sys.exit(1)
+            error_and_exit(f"Unknown command")
+
+def get_gh_username() -> str:
+    command: str = "gh auth status"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Log in to the `gh` CLI tool")
+
+    lines: List[str] = result.stderr.split("\n")
+    username_line: str = lines[1]
+    words: List[str] = username_line.split(" ")
+    name_index: int = words.index("as") + 1
+    name: str = words[name_index]
+
+    return name
+
+# Register the given name onto the ledger
+def register(name: str):
+    ledger_name: str = "ledger.csv"
+    if is_user_in_ledger(ledger_name, name):
+        error_and_exit(f"Cannot register an existing user \"{name}\"")
+    register_user_into_ledger(ledger_name, name)
+
+def is_user_in_ledger(ledger_name: str, name: str) -> bool:
+    with open(ledger_name, newline='') as ledgerfile:
+        reader = csv.reader(ledgerfile, delimiter=",")
+        reader.__next__() # Skip the column descriptors
+        
+        return any(name == line[0] for line in reader)
+
+def register_user_into_ledger(ledger_name: str, name: str):
+    with open(ledger_name, 'a', newline='') as ledgerfile:
+        writer = csv.writer(ledgerfile, delimiter=',', lineterminator='\n')
+        contents: List[str] = f"{name},0".split(",")
+        writer.writerow(contents)
+        success_and_exit(f"Registered user \"{name}\" into ledger")
 
 # Print the help message
 def print_help():
@@ -55,5 +98,15 @@ def format_commands_list(commands: List) -> str:
         lines.append(line)
     formatted: str = "\n".join(lines)
     return formatted
+
+def error_and_exit(msg: str):
+    formatted_msg: str = "\x1b[31mERROR\x1b[39m: " + msg
+    print(formatted_msg)
+    sys.exit(1)
+
+def success_and_exit(msg: str):
+    formatted_msg: str = "\x1b[32mSUCCESS\x1b[39m: " + msg
+    print(formatted_msg)
+    sys.exit(0)
 
 main()

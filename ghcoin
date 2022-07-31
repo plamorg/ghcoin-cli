@@ -35,6 +35,10 @@ def execute_command(args: List[str]):
             register(name)
         case ['register', *_]:
             error_and_exit("Expected no arguments for user to register")
+        case ['use-node', url]:
+            gh_set_origin(url)
+        case ['use-node', *_]:
+            error_and_exit("Expected single argument <url> to set remote ledger")
         case 'help' | '-h' | '--help':
             print_help()
             sys.exit(0)
@@ -174,6 +178,7 @@ def print_help():
         ("balance [user ...]", "Retrieve the balance of self or the specified user(s)"),
         ("list", "List valid recipients"),
         ("register", "Register self onto the ledger"),
+        ("use-node", "Change the target remote ledger"),
         ("help, -h, --help", "List this help message")
     ]
     core_commands: str = format_list(core_commands_list)
@@ -296,6 +301,16 @@ def gh_print_pr_link():
                 words = line.split("\t")
                 url = words[-1]
                 print(f"View the PR here: {url}")
+
+def gh_set_origin(url: str):
+    command: str = f"git remote set-url origin {url}"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to change target remote ledger")
+
+    success_and_exit("Changed target remote ledger")
 
 def format_prefix(color_code: str, prefix: str) -> str:
     formatted_prefix: str = f"\x1b[{color_code}m{prefix}\x1b[39m: "

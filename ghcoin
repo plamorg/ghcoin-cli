@@ -4,6 +4,7 @@ import csv
 import sys
 import secrets
 import subprocess
+import time
 
 from subprocess import CompletedProcess
 from typing import List, Iterable
@@ -17,6 +18,7 @@ def main():
     execute_command(args)
 
 def execute_command(args: List[str]):
+    gh_force_pull()
     match args:
         case ['send', recipient, amount_str]:
             amount: int = int(amount_str)
@@ -25,14 +27,11 @@ def execute_command(args: List[str]):
         case ['send', *_]:
             error_and_exit("Expected <recipient> and <amount> to create transaction")
         case ['balance']:
-            # gh_force_pull()
             name: str = get_gh_username()
             print_balance(name)
         case ['balance', *users]:
-            # gh_force_pull()
             print_balances(users)
         case ['list']:
-            # gh_force_pull()
             print_registered()
         case ['list', *_]:
             error_and_exit("Expected no arguments to list registered accounts")
@@ -97,11 +96,19 @@ def create_transaction(sender: str, recipient: str, amount: int):
     if not recipient_found:
         error_and_exit(f"Account {recipient} not found")
 
+    branch_name: str = gh_checkout_new_branch()
+
     file = open(ledger_name, 'w', newline='')
     file.write("name,balance\n")
     for account in accounts:
         file.write(f"{account[0]},{account[1]}\n")
-    success_and_exit("Created local transaction")
+    file.close()
+
+    gh_add_transaction()
+    gh_commit_transaction(sender, recipient, amount)
+    gh_push_origin(branch_name)
+    gh_create_pr(branch_name)
+    success_and_exit("Created transaction onto global ledger")
 
 def print_balance(name: str):
     ledger_name: str = "ledger.csv"
@@ -194,6 +201,51 @@ def gh_force_pull():
     ledger_name: str = "ledger.csv"
     with open(ledger_name, "w") as file:
         file.write(result.stdout)
+
+def gh_checkout_new_branch() -> str:
+    branch_name: str = f"transaction-{secrets.token_hex(8)}"
+    command: str = f"git checkout -b {branch_name}"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to create new transaction branch")
+
+    return branch_name
+
+def gh_add_transaction():
+    command: str = "git add ledger.csv"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to stage ledger change")
+
+def gh_commit_transaction(sender: str, recipient: str, amount: int):
+    args: List[str] = ["git", "commit", "-m", f'"transaction: {amount} from {sender} to {recipient}"']
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to commit transaction")
+
+def gh_push_origin(branch_name: str):
+    command: str = f"git push origin {branch_name}"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to push transaction to remote branch")
+
+def gh_create_pr(branch_name: str):
+    args: List[str] = [
+        "gh", "pr", "create", 
+        "--title", f'"{branch_name}"', 
+        "--body", f'"{branch_name}"'
+    ]
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to create transaction pull request")
 
 def error_and_exit(msg: str):
     formatted_msg: str = "\x1b[31mERROR\x1b[39m: " + msg

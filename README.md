@@ -1,4 +1,10 @@
-# ghcoin-cli
+<p align="center">
+  <a href="" rel="noopener">
+ <img src="./docs/logo.png" alt="ghcoin logo"></a>
+</p>
+
+<h3 align="center">ghcoin-cli</h3>
+<h4 align="center">The companion to the totally practical currency ghcoin</h3>
 
 `ghcoin` is the CLI for [ghcoin](https://github.com/plamorg/ghcoin), creating a
 more-intuitive, faster interface for performing transactions on the repository.

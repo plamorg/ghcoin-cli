@@ -96,7 +96,7 @@ def create_transaction(sender: str, recipient: str, amount: int):
         error_and_exit(f"Account {recipient} not found")
 
     gh_checkout_master()
-    branch_name: str = gh_checkout_new_branch()
+    branch_name: str = gh_checkout_new_branch("transaction")
 
     file = open(ledger_name, 'w', newline='')
     file.write("name,balance\n")
@@ -152,10 +152,20 @@ def is_user_in_ledger(ledger_name: str, name: str) -> bool:
     return any(name == line[0] for line in reader)
 
 def register_user_into_ledger(ledger_name: str, name: str):
+    gh_checkout_master()
+    branch_name: str = gh_checkout_new_branch("register")
+
     with open(ledger_name, 'a', newline='') as ledgerfile:
         writer = csv.writer(ledgerfile, lineterminator='\n')
         contents: List[str] = f"{name},0".split(",")
         writer.writerow(contents)
+
+        gh_add_transaction()
+        gh_commit_registration(name)
+        gh_push_origin(branch_name)
+        gh_create_pr(branch_name)
+        gh_print_pr_link()
+
         success_and_exit(f"Registered user \"{name}\" into ledger")
 
 # Print the help message
@@ -212,8 +222,8 @@ def gh_checkout_master():
     if result.returncode != 0:
         error_and_exit("Failed to checkout master branch")
 
-def gh_checkout_new_branch() -> str:
-    branch_name: str = f"transaction-{secrets.token_hex(8)}"
+def gh_checkout_new_branch(prefix: str) -> str:
+    branch_name: str = f"{prefix}-{secrets.token_hex(8)}"
     command: str = f"git checkout -b {branch_name}"
     args: List[str] = command.split(" ")
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
@@ -237,6 +247,13 @@ def gh_commit_transaction(sender: str, recipient: str, amount: int):
 
     if result.returncode != 0:
         error_and_exit("Failed to commit transaction")
+
+def gh_commit_registration(user: str):
+    args: List[str] = ["git", "commit", "-m", f'"register: add {user}"']
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to commit registration")
 
 def gh_push_origin(branch_name: str):
     command: str = f"git push origin {branch_name}"

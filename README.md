@@ -28,7 +28,8 @@ CORE COMMANDS:
     send <recipient> <amount>  Send the specified recipient the given amount
     balance [user ...]         Retrieve the balance of self or the specified user(s)
     list                       List valid recipients
-    register                   Register a user onto the ledger
+    register                   Register self onto the ledger
+    use-node                   Change the target remote ledger
     help, -h, --help           List this help message
 ```
 

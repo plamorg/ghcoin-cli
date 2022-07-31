@@ -10,14 +10,10 @@ from typing import List, Iterable, Optional
 
 def main():
     args: List[str] = sys.argv[1:]
-    if len(args) == 0:
-        print_help()
-        sys.exit(0)
-
     execute_command(args)
 
 def execute_command(args: List[str]):
-    gh_force_pull()
+    gh_soft_pull()
     match args:
         case ['send', recipient, amount_str]:
             amount: int = int(amount_str)
@@ -42,8 +38,10 @@ def execute_command(args: List[str]):
         case 'help' | '-h' | '--help':
             print_help()
             sys.exit(0)
+        case [command, *_]:
+            error_and_exit(f"Unknown command \"{command}\"")
         case _:
-            error_and_exit(f"Unknown command")
+            print_help()
 
 def get_gh_username() -> str:
     command: str = "gh auth status"
@@ -109,6 +107,7 @@ def create_transaction(sender: str, recipient: str, amount: int):
     gh_push_origin(branch_name)
     gh_create_pr(branch_name)
     gh_print_pr_link()
+    gh_checkout_master()
 
     success_and_exit("Created transaction onto global ledger")
 
@@ -201,18 +200,29 @@ def format_list(strs: List) -> str:
     formatted: str = "\n".join(lines)
     return formatted
 
-def gh_force_pull():
-    remote_url: str = "https://raw.githubusercontent.com/plamorg/ghcoin/master/ledger.csv"
-    command: str = f"curl {remote_url}"
+def gh_soft_pull():
+    command: str = "git pull origin master"
     args: List[str] = command.split(" ")
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
-        error_and_exit("Failed to force sync local ledger")
+        print(format_warning("Soft sync failed... Attempting hard sync"))
+        gh_force_pull()
 
-    ledger_name: str = "ledger.csv"
-    with open(ledger_name, "w") as file:
-        file.write(result.stdout)
+def gh_force_pull():
+    command: str = "git fetch origin"
+    args: List[str] = command.split(" ")
+    result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to fetch remote ledger")
+
+    force_command: str = "git reset --hard origin/master"
+    force_args: List[str] = command.split(" ")
+    force_result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_and_exit("Failed to force sync local ledger with remote ledger")
 
 def gh_checkout_master():
     command: str = "git checkout master"
@@ -287,14 +297,28 @@ def gh_print_pr_link():
                 url = words[-1]
                 print(f"View the PR here: {url}")
 
+def format_prefix(color_code: str, prefix: str) -> str:
+    formatted_prefix: str = f"\x1b[{color_code}m{prefix}\x1b[39m: "
+    return formatted_prefix
+
+def format_error(msg: str) -> str:
+    formatted_msg: str = format_prefix("31", "ERROR") + msg
+    return formatted_msg
+
+def format_success(msg: str) -> str:
+    formatted_msg: str = format_prefix("32", "SUCCESS") + msg
+    return formatted_msg
+
+def format_warning(msg: str) -> str:
+    formatted_msg: str = format_prefix("33", "WARNING") + msg
+    return formatted_msg
+
 def error_and_exit(msg: str):
-    formatted_msg: str = "\x1b[31mERROR\x1b[39m: " + msg
-    print(formatted_msg)
+    print(format_error(msg))
     sys.exit(1)
 
 def success_and_exit(msg: str):
-    formatted_msg: str = "\x1b[32mSUCCESS\x1b[39m: " + msg
-    print(formatted_msg)
+    print(format_success(msg))
     sys.exit(0)
 
 main()

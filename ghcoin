@@ -8,44 +8,47 @@ import subprocess
 from subprocess import CompletedProcess
 from typing import List, Iterable, Optional
 
+
 def main():
     args: List[str] = sys.argv[1:]
     execute_command(args)
 
+
 def execute_command(args: List[str]):
     gh_soft_pull()
     match args:
-        case ['send', recipient, amount_str]:
+        case ["send", recipient, amount_str]:
             amount: int = int(amount_str)
             sender: str = get_gh_username()
             create_transaction(sender, recipient, amount)
-        case ['send', *_]:
+        case ["send", *_]:
             error_and_exit("Expected <recipient> and <amount> to create transaction")
-        case ['balance']:
+        case ["balance"]:
             name: str = get_gh_username()
             print_balance(name)
-        case ['balance', *users]:
+        case ["balance", *users]:
             print_balances(users)
-        case ['list']:
+        case ["list"]:
             print_registered()
-        case ['list', *_]:
+        case ["list", *_]:
             error_and_exit("Expected no arguments to list registered accounts")
-        case ['register']:
+        case ["register"]:
             name: str = get_gh_username()
             register(name)
-        case ['register', *_]:
+        case ["register", *_]:
             error_and_exit("Expected no arguments for user to register")
-        case ['use-node', url]:
+        case ["use-node", url]:
             gh_set_origin(url)
-        case ['use-node', *_]:
+        case ["use-node", *_]:
             error_and_exit("Expected single argument <url> to set remote ledger")
-        case 'help' | '-h' | '--help':
+        case "help" | "-h" | "--help":
             print_help()
             sys.exit(0)
         case [command, *_]:
-            error_and_exit(f"Unknown command \"{command}\"")
+            error_and_exit(f'Unknown command "{command}"')
         case _:
             print_help()
+
 
 def get_gh_username() -> str:
     command: str = "gh auth status"
@@ -63,12 +66,14 @@ def get_gh_username() -> str:
 
     return name
 
+
 def get_ledger_reader(ledger_name: str) -> List[List[str]]:
-    with open (ledger_name, newline='') as ledgerfile:
+    with open(ledger_name, newline="") as ledgerfile:
         reader = csv.reader(ledgerfile, delimiter=",")
         reader.__next__()
-        
+
         return list(reader)
+
 
 def create_transaction(sender: str, recipient: str, amount: int):
     ledger_name: str = "ledger.csv"
@@ -91,7 +96,7 @@ def create_transaction(sender: str, recipient: str, amount: int):
             balance = int(line[1]) + amount
             accounts[i][1] = str(balance)
             recipient_found = True
-    
+
     if not sender_found:
         error_and_exit(f"Account {sender} not found")
     if not recipient_found:
@@ -100,7 +105,7 @@ def create_transaction(sender: str, recipient: str, amount: int):
     gh_checkout_master()
     branch_name: str = gh_checkout_new_branch("transaction")
 
-    file = open(ledger_name, 'w', newline='')
+    file = open(ledger_name, "w", newline="")
     file.write("name,balance\n")
     for account in accounts:
         file.write(f"{account[0]},{account[1]}\n")
@@ -115,6 +120,7 @@ def create_transaction(sender: str, recipient: str, amount: int):
 
     success_and_exit("Created transaction onto global ledger")
 
+
 def print_balance(name: str):
     ledger_name: str = "ledger.csv"
     reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
@@ -124,6 +130,7 @@ def print_balance(name: str):
             success_and_exit(f"{name} has {amount}")
     else:
         error_and_exit(f"Could not find {name} in ledger")
+
 
 def print_balances(names: List[str]):
     users = set(names)
@@ -135,6 +142,7 @@ def print_balances(names: List[str]):
     print("BALANCES")
     print(formatted_users)
 
+
 def print_registered():
     ledger_name: str = "ledger.csv"
     reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
@@ -143,23 +151,26 @@ def print_registered():
     print("REGISTERED ACCOUNTS")
     print(names)
 
+
 # Register the given name onto the ledger
 def register(name: str):
     ledger_name: str = "ledger.csv"
     if is_user_in_ledger(ledger_name, name):
-        error_and_exit(f"Cannot register an existing user \"{name}\"")
+        error_and_exit(f'Cannot register an existing user "{name}"')
     register_user_into_ledger(ledger_name, name)
+
 
 def is_user_in_ledger(ledger_name: str, name: str) -> bool:
     reader: Iterable[List[str]] = get_ledger_reader(ledger_name)
     return any(name == line[0] for line in reader)
 
+
 def register_user_into_ledger(ledger_name: str, name: str):
     gh_checkout_master()
     branch_name: str = gh_checkout_new_branch("register")
 
-    with open(ledger_name, 'a', newline='') as ledgerfile:
-        writer = csv.writer(ledgerfile, lineterminator='\n')
+    with open(ledger_name, "a", newline="") as ledgerfile:
+        writer = csv.writer(ledgerfile, lineterminator="\n")
         contents: List[str] = f"{name},0".split(",")
         writer.writerow(contents)
 
@@ -169,7 +180,8 @@ def register_user_into_ledger(ledger_name: str, name: str):
         gh_create_pr(branch_name)
         gh_print_pr_link()
 
-        success_and_exit(f"Registered user \"{name}\" into ledger")
+        success_and_exit(f'Registered user "{name}" into ledger')
+
 
 # Print the help message
 def print_help():
@@ -179,11 +191,10 @@ def print_help():
         ("list", "List valid recipients"),
         ("register", "Register self onto the ledger"),
         ("use-node", "Change the target remote ledger"),
-        ("help, -h, --help", "List this help message")
+        ("help, -h, --help", "List this help message"),
     ]
     core_commands: str = format_list(core_commands_list)
-    help_message: str = \
-f"""Control your transactions from the command line.
+    help_message: str = f"""Control your transactions from the command line.
 
 USAGE:
     ghcoin <command> <subcommand>
@@ -192,6 +203,7 @@ CORE COMMANDS:
 {core_commands}
 """
     print(help_message)
+
 
 # Format a list of commands for printing in the help message
 def format_list(strs: List) -> str:
@@ -205,6 +217,7 @@ def format_list(strs: List) -> str:
     formatted: str = "\n".join(lines)
     return formatted
 
+
 def gh_soft_pull():
     command: str = "git pull origin master"
     args: List[str] = command.split(" ")
@@ -213,6 +226,7 @@ def gh_soft_pull():
     if result.returncode != 0:
         print(format_warning("Soft sync failed... Attempting hard sync"))
         gh_force_pull()
+
 
 def gh_force_pull():
     command: str = "git fetch origin"
@@ -224,10 +238,13 @@ def gh_force_pull():
 
     force_command: str = "git reset --hard origin/master"
     force_args: List[str] = command.split(" ")
-    force_result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
+    force_result: CompletedProcess = subprocess.run(
+        args, capture_output=True, text=True
+    )
 
     if result.returncode != 0:
         error_and_exit("Failed to force sync local ledger with remote ledger")
+
 
 def gh_checkout_master():
     command: str = "git checkout master"
@@ -236,6 +253,7 @@ def gh_checkout_master():
 
     if result.returncode != 0:
         error_and_exit("Failed to checkout master branch")
+
 
 def gh_checkout_new_branch(prefix: str) -> str:
     branch_name: str = f"{prefix}-{secrets.token_hex(8)}"
@@ -248,6 +266,7 @@ def gh_checkout_new_branch(prefix: str) -> str:
 
     return branch_name
 
+
 def gh_add_transaction():
     command: str = "git add ledger.csv"
     args: List[str] = command.split(" ")
@@ -256,12 +275,19 @@ def gh_add_transaction():
     if result.returncode != 0:
         error_and_exit("Failed to stage ledger change")
 
+
 def gh_commit_transaction(sender: str, recipient: str, amount: int):
-    args: List[str] = ["git", "commit", "-m", f"transaction: {amount} from {sender} to {recipient}"]
+    args: List[str] = [
+        "git",
+        "commit",
+        "-m",
+        f"transaction: {amount} from {sender} to {recipient}",
+    ]
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
         error_and_exit("Failed to commit transaction")
+
 
 def gh_commit_registration(user: str):
     args: List[str] = ["git", "commit", "-m", f"register: add {user}"]
@@ -269,6 +295,7 @@ def gh_commit_registration(user: str):
 
     if result.returncode != 0:
         error_and_exit("Failed to commit registration")
+
 
 def gh_push_origin(branch_name: str):
     command: str = f"git push origin {branch_name}"
@@ -278,16 +305,22 @@ def gh_push_origin(branch_name: str):
     if result.returncode != 0:
         error_and_exit("Failed to push transaction to remote branch")
 
+
 def gh_create_pr(branch_name: str):
     args: List[str] = [
-        "gh", "pr", "create", 
-        "--title", f'"{branch_name}"', 
-        "--body", f'"{branch_name}"'
+        "gh",
+        "pr",
+        "create",
+        "--title",
+        f'"{branch_name}"',
+        "--body",
+        f'"{branch_name}"',
     ]
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
         error_and_exit("Failed to create transaction pull request")
+
 
 def gh_print_pr_link():
     command: str = "gh pr view"
@@ -302,6 +335,7 @@ def gh_print_pr_link():
                 url = words[-1]
                 print(f"View the PR here: {url}")
 
+
 def gh_set_origin(url: str):
     command: str = f"git remote set-url origin {url}"
     args: List[str] = command.split(" ")
@@ -312,28 +346,35 @@ def gh_set_origin(url: str):
 
     success_and_exit("Changed target remote ledger")
 
+
 def format_prefix(color_code: str, prefix: str) -> str:
     formatted_prefix: str = f"\x1b[{color_code}m{prefix}\x1b[39m: "
     return formatted_prefix
+
 
 def format_error(msg: str) -> str:
     formatted_msg: str = format_prefix("31", "ERROR") + msg
     return formatted_msg
 
+
 def format_success(msg: str) -> str:
     formatted_msg: str = format_prefix("32", "SUCCESS") + msg
     return formatted_msg
+
 
 def format_warning(msg: str) -> str:
     formatted_msg: str = format_prefix("33", "WARNING") + msg
     return formatted_msg
 
+
 def error_and_exit(msg: str):
     print(format_error(msg))
     sys.exit(1)
 
+
 def success_and_exit(msg: str):
     print(format_success(msg))
     sys.exit(0)
+
 
 main()

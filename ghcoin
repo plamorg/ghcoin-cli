@@ -257,14 +257,14 @@ def gh_add_transaction():
         error_and_exit("Failed to stage ledger change")
 
 def gh_commit_transaction(sender: str, recipient: str, amount: int):
-    args: List[str] = ["git", "commit", "-m", f'"transaction: {amount} from {sender} to {recipient}"']
+    args: List[str] = ["git", "commit", "-m", f"transaction: {amount} from {sender} to {recipient}"]
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
         error_and_exit("Failed to commit transaction")
 
 def gh_commit_registration(user: str):
-    args: List[str] = ["git", "commit", "-m", f'"register: add {user}"']
+    args: List[str] = ["git", "commit", "-m", f"register: add {user}"]
     result: CompletedProcess = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
